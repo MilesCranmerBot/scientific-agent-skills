@@ -12,22 +12,7 @@ metadata:
 
 PySR is a Python interface for symbolic regression backed by SymbolicRegression.jl. Use it when the goal is to find a symbolic model you can inspect, constrain, export, and rerun, not just to maximize predictive accuracy.
 
-This guide targets stable PySR v1 first. Prefer the plain `PySRRegressor` path for unconstrained discovery, but switch to `TemplateExpressionSpec` early when the user already knows important structure.
-
-## When to Use This Skill
-
-Use this skill when the user wants symbolic regression or symbolic-model discovery, especially for:
-- discovering or distilling a symbolic model from data, simulations, or another predictive system
-- discovering an interpretable equation from tabular `X, y`
-- controlling allowed operators and equation complexity
-- comparing simpler vs better-fitting equations on the Pareto front
-- building structured expressions with `TemplateExpressionSpec`
-- category-specific parameters with a shared equation form
-- custom elementwise or global losses in Julia syntax
-- fitting structured residuals, derivative-informed objectives, or physics-shaped surrogates
-- exporting callable, SymPy, JAX, PyTorch, or LaTeX forms of equations
-- resuming with `warm_start` or reloading saved search state with `PySRRegressor.from_file(run_directory=...)`
-- troubleshooting Julia import, cluster, or file-output issues
+Prefer plain `PySRRegressor` for unconstrained discovery. Switch to `TemplateExpressionSpec` early when important structure is already known.
 
 ## When Not to Use PySR First
 
@@ -132,12 +117,7 @@ Do not blindly ship the minimum-loss row when a slightly simpler equation is nea
 
 ## Safe first checks before a long run
 
-```python
-print(X.shape, y.shape)
-print(model)
-```
-
-Then verify:
+Before scaling budget, verify:
 - feature count is actually modest enough for symbolic regression
 - operators match the domain
 - `maxsize` is not wildly larger than needed
@@ -153,17 +133,10 @@ Then verify:
 
 ## References to open next
 
-### `references/installation_and_environment.md`
-Use for install choices, Julia startup behavior, cluster/container notes, and environment-level import failures.
-
-### `references/core_workflows.md`
-Use for the main PySR workflow, tuning sequence, operator/constraint advice, exporting equations, and warm-start habits.
-
-### `references/template_expressions.md`
-Use when the user needs structured equations, category-specific parameters, shared subexpressions, derivatives, or multi-output workarounds.
-
-### `references/troubleshooting.md`
-Use for startup crashes, HPC issues, output-file quirks, invalid custom operators, warm-start confusion, and template-specific pitfalls.
+- `references/core_workflows.md`: default PySR workflow, operator/constraint advice, result inspection, warm starts
+- `references/template_expressions.md`: structured equations, category-specific parameters, shared subexpressions, multi-output workarounds
+- `references/installation_and_environment.md`: install choices, Julia startup, container and cluster issues
+- `references/troubleshooting.md`: bad operators, startup crashes, output-file quirks, warm-start confusion, template pitfalls
 
 ## Optional runnable examples
 
