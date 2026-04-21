@@ -4,11 +4,11 @@ Important detail: category indices used to index template parameters must start 
 not 0, because Julia arrays are 1-indexed.
 
 This is meant to be run in an environment where `import pysr` already works.
-If you are running from a local PySR checkout, a practical pattern is:
-    uv run --directory /path/to/PySR python parametric_template.py
+If you are running from a PySR checkout, a practical pattern is:
+    uv run --directory /path/to/PySR python3 parametric_template.py
 
 Run with:
-    python parametric_template.py
+    python3 parametric_template.py
 """
 
 from __future__ import annotations

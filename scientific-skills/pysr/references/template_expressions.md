@@ -46,7 +46,7 @@ model.fit(X, y)
 
 ## Category-specific parameters with a shared equation form
 
-This is one of the most important template workflows because it directly addresses repeated user questions like #1179 and older threads like #530 and #1091.
+This is one of the most important template workflows because it covers a very common use case: one shared equation form with category-specific parameters.
 
 Treat this as a normal PySR power-user pattern, not a weird corner case.
 
@@ -184,9 +184,9 @@ Template workflows are powerful, but they have had more edge cases than plain se
 - complex-domain template exports
 
 Practical recommendation:
-- validate the workflow on one local process first
+- validate the workflow on one process first
 - only then scale it up or add cluster/distributed complexity
-- do not assume `PySRRegressor.from_file(...)` will cleanly reload template-based runs; this path is known to be fragile
+- do not assume `PySRRegressor.from_file(run_directory=...)` will cleanly reload template-based runs; this path is known to be fragile
 
 ## When not to use templates
 

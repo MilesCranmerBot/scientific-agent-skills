@@ -1,11 +1,11 @@
 """Safe first-run PySR regression example.
 
 This is meant to be run in an environment where `import pysr` already works.
-If you are running from a local PySR checkout, a practical pattern is:
-    uv run --directory /path/to/PySR python basic_search.py
+If you are running from a PySR checkout, a practical pattern is:
+    uv run --directory /path/to/PySR python3 basic_search.py
 
 Run with:
-    python basic_search.py
+    python3 basic_search.py
 """
 
 from __future__ import annotations

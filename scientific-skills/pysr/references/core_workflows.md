@@ -2,6 +2,14 @@
 
 This is the practical workflow for most PySR tasks.
 
+## If you only remember five things
+
+1. Start with the smallest operator set that could plausibly express the target.
+2. Treat run 1 as a cheap probe, not the final search.
+3. Inspect `model.equations_`, not just `get_best()`.
+4. Tighten operators and constraints before adding more runtime.
+5. Compare a few Pareto-front candidates before shipping one equation.
+
 ## Table of contents
 1. Standard symbolic regression workflow
 2. Tuning sequence that usually works
@@ -71,7 +79,7 @@ One subtlety from the implementation: the `score` column is only computed in the
 
 ## 2. Tuning sequence that usually works
 
-This sequence mirrors the tuning notes in the local docs and matches many discussion answers.
+This sequence mirrors the tuning notes in the PySR docs.
 
 ### Step 1, start with fewer operators than you want
 
@@ -207,10 +215,11 @@ elementwise_loss="loss(prediction, target) = (prediction - target)^2"
 
 An `elementwise_loss` should not loop over the full dataset.
 
-### L1 vs L2
+### Common built-in loss choices
 
-- `L2` is the normal starting point.
-- `L1` is often worth trying on noisy or outlier-heavy data.
+- `L2DistLoss()` is the default starting point.
+- `L1DistLoss()` is often worth trying on noisy or outlier-heavy data.
+- `HuberLoss(d)` can be a useful middle ground when pure squared error is too sensitive but pure absolute error is too blunt.
 
 On harder fitting problems, it is often worth changing both the transformed target and the loss choice.
 
@@ -235,7 +244,7 @@ If the objective really needs to look across the full dataset, use the full-obje
 
 ### Batching
 
-The local tuning notes give a practical rule:
+The tuning notes give a practical rule:
 - for datasets bigger than about 1000 rows, either subsample or use batching
 
 Important caveat: batching is mainly about reducing cost on larger datasets. It is not a generic recommendation for noisy data. For small noisy datasets, batching can make selection less stable and may be worse than just fitting on the full dataset.
@@ -289,17 +298,17 @@ Useful exports usually include:
 ### Saved artifacts
 
 Typical outputs:
-- `hall_of_fame...csv`
-- `hall_of_fame...pkl`
+- `checkpoint.pkl`
+- `hall_of_fame.csv`
 
 Reload with:
 
 ```python
 from pysr import PySRRegressor
-model = PySRRegressor.from_file("hall_of_fame.2026-01-01_120000.000.pkl")
+model = PySRRegressor.from_file(run_directory="outputs/2026-01-01_120000.000")
 ```
 
-If the user quit a run early, the pickle and CSV can matter together.
+If the user quit a run early, the run directory can still be useful because the CSV updates during the search and `checkpoint.pkl` may exist from the latest checkpoint.
 
 For plain searches this reload flow is well supported. For template-based runs, treat reload as fragile: `TemplateExpressionSpec` pickled reloads can still fail.
 

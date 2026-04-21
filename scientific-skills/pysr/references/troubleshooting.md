@@ -10,7 +10,7 @@ This guide focuses on the problems that come up repeatedly in real PySR use.
 - container or cluster import works inconsistently
 
 ### What to try
-1. Reproduce in a fresh shell with only `python -c "import pysr"`.
+1. Reproduce in a fresh shell with only `python3 -c "import pysr"`.
 2. Move to a clean environment.
 3. On Linux, check whether another package is loading an incompatible `libstdc++` before Julia.
 4. On clusters, prefer the provided `Apptainer.def` or a known-good container.
@@ -107,7 +107,7 @@ Core search settings changed between fits.
 
 ### What to do
 - if the search definition changed materially, start a fresh model or call `reset()`
-- use `from_file(...)` to inspect old ordinary runs rather than forcing them into a new search setup
+- use `from_file(run_directory=...)` to inspect old ordinary runs rather than forcing them into a new search setup
 - for template runs, remember that reloads are known to be fragile and may fail
 
 Treat this as a strong restart-fresh case.
@@ -200,5 +200,5 @@ When debugging, check in this order:
 3. operator validity
 4. template correctness, if used
 5. output directory writability
-6. whether the run is local multithreading or distributed
+6. whether the run is single-node multithreading or distributed
 7. only then start suspecting deeper PySR bugs

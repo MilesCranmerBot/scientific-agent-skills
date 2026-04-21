@@ -13,7 +13,7 @@ pip install pysr
 ```
 
 PySR installs Julia-side dependencies on first import through `juliacall`.
-For repo-local execution, a practical pattern is often `uv run --directory /path/to/PySR python script.py`.
+If running from a PySR checkout, a practical pattern is often `uv run --directory /path/to/PySR python3 script.py`.
 
 ### Option 2, conda-forge
 
@@ -25,7 +25,7 @@ PySR is compatible with the usual Python environment managers. Use whichever env
 
 ### Option 3, containerized on clusters
 
-For HPC or locked-down systems, prefer a tested container recipe over hand-fixing libraries. The local PySR repo includes:
+For HPC or locked-down systems, prefer a tested container recipe over hand-fixing libraries. The PySR repo includes:
 - `Apptainer.def`
 - `Dockerfile`
 
@@ -51,12 +51,12 @@ First import and first real search may spend noticeable time provisioning and pr
 
 ## Julia version and backend notes
 
-The checked-in `pysr/juliapkg.json` in the local PySR clone pins Julia `1.10.x` and a SymbolicRegression.jl backend revision. For users, the main practical point is simpler: use a normal supported PySR install and avoid mixing random Julia environments unless you know why.
+The checked-in `pysr/juliapkg.json` pins Julia `1.10.x` and a SymbolicRegression.jl backend revision. For users, the main practical point is simpler: use a normal supported PySR install and avoid mixing random Julia environments unless you know why.
 
 ## Common install commands to verify quickly
 
 ```bash
-python -c "import pysr; print(pysr.__version__)"
+python3 -c "import pysr; print(pysr.__version__)"
 ```
 
 If that succeeds, most environment pain is already behind you.
