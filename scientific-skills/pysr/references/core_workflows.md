@@ -45,6 +45,26 @@ Goals for run 1:
 - see whether complexity is exploding
 - decide whether the operator set is too broad or too narrow
 
+### Choosing from the Pareto front
+
+This is the most important plain-PySR habit.
+
+PySR does not just return one equation. It returns a frontier of equations trading off fit and complexity. In many real workflows, the best operational answer is not the minimum-loss row, but the simplest row whose loss is already good enough.
+
+Useful selection patterns:
+- `model_selection="best"`: good default when you want PySR to balance simplicity and accuracy.
+- `model_selection="accuracy"`: useful when the user explicitly wants the lowest-loss available equation.
+- manual inspection of `model.equations_`: best when interpretability matters and the user is willing to choose from the frontier.
+
+Typical workflow:
+
+```python
+cols = [c for c in ["loss", "complexity", "score", "equation"] if c in model.equations_.columns]
+print(model.equations_[cols].tail(10))
+```
+
+If two candidate equations have very similar loss, usually prefer the simpler one unless the user explicitly says otherwise.
+
 ## 2. Tuning sequence that usually works
 
 This sequence mirrors the tuning notes in the local docs and matches many discussion answers.
@@ -179,6 +199,16 @@ weights = 1.0 / (sigma ** 2)
 model.fit(X, y, weights=weights)
 ```
 
+If you also define a custom `elementwise_loss`, it must accept three arguments:
+
+```python
+elementwise_loss="loss(prediction, target, weight) = weight * abs(prediction - target)"
+```
+
+If you pass `weights=...` but keep a two-argument custom loss, PySR will not know how to apply the weights correctly.
+
+If the objective really needs to look across the full dataset, use the full-objective path rather than trying to smuggle dataset-level logic into `elementwise_loss`.
+
 ### Batching
 
 The local tuning notes give a practical rule:
@@ -206,11 +236,27 @@ model.sympy()
 model.latex()
 ```
 
+### What to inspect first
+
+For most users, the best first view is the equation table itself:
+
+```python
+cols = [c for c in ["loss", "complexity", "score", "equation"] if c in model.equations_.columns]
+print(model.equations_[cols])
+```
+
+Notes:
+- `loss` and `complexity` are the most universal columns to reason about.
+- `score` is useful when present, but do not assume it is always available or comparable across every loss setup.
+- `model.get_best()` reflects the current `model_selection` strategy, not some universally correct choice.
+
 Useful exports usually include:
 - `equation`
 - `sympy_format`
 - `lambda_format`
-- optionally JAX and Torch formats
+- optionally JAX and Torch forms when those exports are enabled and their mappings exist
+
+`lambda_format` is the main callable form for normal Python-side evaluation. Describing this as a “NumPy export” is fine informally, but in practice the concrete surface is the callable/lambda representation plus SymPy/JAX/Torch helpers.
 
 ### Saved artifacts
 
@@ -227,7 +273,43 @@ model = PySRRegressor.from_file("hall_of_fame.2026-01-01_120000.000.pkl")
 
 If the user quit a run early, the pickle and CSV can matter together.
 
-## 6. Warm starts and reruns
+## 6. Common retuning loop
+
+This is a more realistic workflow than trying to get the final equation in one shot.
+
+1. Start with a minimal operator set and modest `maxsize`.
+2. Run a short search.
+3. Inspect `model.equations_`.
+4. Decide whether the frontier is failing because of:
+   - missing operator expressivity
+   - too much complexity freedom
+   - too many rows for the current search budget
+   - wrong loss choice
+5. Tighten constraints or add one operator.
+6. Restart fresh unless the setup is materially unchanged.
+
+Example:
+
+```python
+model = PySRRegressor(
+    niterations=100,
+    binary_operators=["+", "-", "*"],
+    unary_operators=["square"],
+    maxsize=14,
+)
+model.fit(X, y)
+
+# After inspection, maybe add one operator and restart fresh:
+model = PySRRegressor(
+    niterations=100,
+    binary_operators=["+", "-", "*", "/"],
+    unary_operators=["square"],
+    maxsize=14,
+)
+model.fit(X, y)
+```
+
+## 7. Warm starts and reruns
 
 ### Good use of `warm_start`
 
@@ -256,7 +338,7 @@ Discussion #922 and the README both warn that these changes are risky or incompa
 
 If in doubt, use `model.reset()` or start a fresh run.
 
-## 7. High-dimensional or redundant feature sets
+## 8. High-dimensional or redundant feature sets
 
 PySR can handle more than toy feature counts, but search cost still grows brutally.
 

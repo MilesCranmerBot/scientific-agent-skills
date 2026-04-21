@@ -73,6 +73,16 @@ loss(prediction, target) = abs(prediction - target)
 
 Discussion #1079 highlights this confusion directly.
 
+### Weighted custom-loss gotcha
+
+If you pass `weights=...` to `fit`, a custom `elementwise_loss` must accept three arguments:
+
+```julia
+loss(prediction, target, weight) = weight * abs(prediction - target)
+```
+
+If the loss only accepts `(prediction, target)`, weighted runs can fail or behave differently than intended.
+
 ## 5. TemplateExpressionSpec fails or gives bizarre results
 
 ### Checklist

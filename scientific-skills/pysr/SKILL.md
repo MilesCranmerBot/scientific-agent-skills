@@ -23,7 +23,7 @@ Use this skill when tasks involve:
 - building structured expressions with `TemplateExpressionSpec`
 - category-specific parameters with a shared equation form
 - custom elementwise or global losses in Julia syntax
-- exporting equations to SymPy, NumPy, JAX, PyTorch, or LaTeX
+- exporting callable, SymPy, JAX, PyTorch, or LaTeX forms of equations
 - resuming runs from `hall_of_fame` files or `warm_start`
 - troubleshooting Julia import, cluster, or file-output issues
 
@@ -65,6 +65,8 @@ print(model.get_best())
 - Prefer a short operator list. PySR discussions repeatedly show that too many operators slow search more than they help.
 - Start with `+`, `-`, `*`, maybe `/`, then add domain operators one by one.
 - Use `batching=True` for larger or noisier datasets. For low-dimensional clean problems, subsampling often works well.
+- Treat `model.equations_` as the real result. The minimum-loss row is not automatically the best operational choice if a slightly simpler equation is nearly as good.
+- `model_selection="best"` is a good default, but it is still worth manually inspecting the Pareto front when the user cares about interpretability.
 - `warm_start=True` is useful only if core search settings stay effectively the same.
 
 ### Structured searches with templates
@@ -74,22 +76,21 @@ print(model.get_best())
 
 ### Losses and objectives
 - `elementwise_loss` should be truly elementwise. Do not sum over rows inside it.
+- If you pass `weights=...` to `fit`, a custom `elementwise_loss` must accept three arguments: `(prediction, target, weight)`.
 - For likelihood-style or signed objectives, consider `loss_scale="linear"`.
 - For noisy tails or outliers, try `L1`-style losses before overengineering the operator set.
 
 ### Interpreting outputs
-- `model.equations_` is the main artifact. Use it to compare loss, score, and complexity.
+- `model.equations_` is the main artifact. Use it to compare loss and complexity, and use `score` too when that column is present.
 - Saved files usually include both `hall_of_fame...csv` and `hall_of_fame...pkl`.
 - Use `PySRRegressor.from_file(...)` to inspect a saved run in a fresh process.
 
 ## Discussion-derived gotchas worth remembering
 
-- Template categories are effectively 1-indexed. If category ids start at 0, add 1 before fitting. This came up directly in discussion #1179.
-- `TemplateExpressionSpec.combine` must return one value, not a tuple. Multi-output problems need a residual-based workaround, discussed in #1174 and #1002.
-- `warm_start` is brittle if you change operators, `expression_spec`, `maxsize`, `maxdepth`, or precision, per #922 and the README.
-- On one machine, prefer multithreading over distributed cluster setup unless there is a clear reason otherwise. This advice recurs in #1144 and #1110.
-- Template expressions on distributed workers have been a source of edge cases, especially around Slurm in #1110.
-- If `hall_of_fame.csv` permissions behave strangely, write to a simple local writable directory rather than a sync folder or quirky mount, echoing #1048.
+- The minimum-loss row is often not the best final answer. Inspect the Pareto front and prefer a simpler equation when loss is close.
+- Template categories are effectively 1-indexed. If category ids start at 0, add 1 before fitting.
+- If custom `elementwise_loss` is used together with `weights`, the loss must accept a third `weight` argument.
+- `warm_start` is brittle if you change operators, `expression_spec`, `maxsize`, `maxdepth`, or precision. When in doubt, reset or start fresh.
 
 ## Bundled resources
 

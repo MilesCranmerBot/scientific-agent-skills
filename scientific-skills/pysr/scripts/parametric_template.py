@@ -22,7 +22,7 @@ def make_dataset(n: int = 900, seed: int = 0):
 
     scale = np.array([0.8, 1.6, -0.5])
     offset = np.array([0.2, -0.7, 1.1])
-    y = scale[category] * np.sin(x1) + offset[category]
+    y = scale[category] * np.sin(x1) + offset[category] * x2
     y += 0.01 * rng.normal(size=n)
 
     category_for_julia = category + 1

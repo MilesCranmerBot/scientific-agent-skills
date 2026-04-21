@@ -98,6 +98,8 @@ The tuning guide explicitly recommends IPython over Jupyter for long runs.
 
 For most users, start with single-node multithreading.
 
+One naming wrinkle: current PySR uses `parallelism=...` style configuration, while older docs, code snippets, and discussion threads may talk in terms of `multithreading`, `multiprocessing`, and `procs`. Read older advice through that translation layer.
+
 Only move to distributed execution if:
 - the dataset or search budget truly requires it, and
 - the user is comfortable debugging Julia worker environments
