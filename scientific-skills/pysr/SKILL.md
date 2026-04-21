@@ -39,7 +39,7 @@ Do not reach for PySR first when:
 
 In those cases, first consider feature selection, a simpler baseline model, or a more standard predictive workflow.
 
-## Default PySR Playbook
+## Default workflow
 
 1. Start with a deliberately small operator set that matches the actual hypothesis class.
 2. Run a cheap probe, not a heroic search.
@@ -84,17 +84,9 @@ model = PySRRegressor(
 )
 
 model.fit(X, y)
-print(model)
-print(model.get_best())
+cols = [c for c in ["loss", "complexity", "equation"] if c in model.equations_.columns]
+print(model.equations_[cols].tail())
 ```
-
-## Default Operating Pattern
-
-1. Start with a small, non-redundant operator set.
-2. Keep the first run cheap enough to iterate on quickly.
-3. Inspect `model.equations_`, not just `model.predict`.
-4. Tighten `constraints`, `nested_constraints`, and `maxsize` before adding more search budget.
-5. Only move to `TemplateExpressionSpec` when plain symbolic regression is leaving obvious structure on the table.
 
 ## Pareto Front and Model Selection
 
@@ -159,7 +151,7 @@ Then verify:
 - If custom `elementwise_loss` is used together with `weights`, the loss must accept a third `weight` argument.
 - `warm_start` is safest only when the search definition is materially unchanged. Operator changes are explicitly unsafe, and changing template/size/depth/precision settings should be treated as suspect.
 
-## Bundled resources
+## References to open next
 
 ### `references/installation_and_environment.md`
 Use for install choices, Julia startup behavior, cluster/container notes, and environment-level import failures.

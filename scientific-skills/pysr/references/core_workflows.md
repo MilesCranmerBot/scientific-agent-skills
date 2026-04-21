@@ -10,16 +10,6 @@ This is the practical workflow for most PySR tasks.
 4. Tighten operators and constraints before adding more runtime.
 5. Compare a few Pareto-front candidates before shipping one equation.
 
-## Table of contents
-1. Standard symbolic regression workflow
-2. Tuning sequence that usually works
-3. Operators, constraints, and complexity
-4. Losses, weights, and batching
-5. Reading results and exporting equations
-6. Common retuning loop
-7. Warm starts and reruns
-8. High-dimensional or redundant feature sets
-
 ## 1. Standard symbolic regression workflow
 
 ### Minimal pattern
@@ -44,19 +34,13 @@ model.fit(X, y)
 print(model.equations_[["loss", "complexity", "equation"]].tail())
 ```
 
-### Recommended habit
-
-Treat the first run as a search-space probe, not the final answer.
-
-Goals for run 1:
+Treat the first run as a search-space probe, not the final answer. Run 1 should answer:
 - verify the target is learnable at all
 - check whether the right variables appear
 - see whether complexity is exploding
 - decide whether the operator set is too broad or too narrow
 
 ### Choosing from the Pareto front
-
-This is the most important plain-PySR habit.
 
 PySR does not just return one equation. It returns a frontier of equations trading off fit and complexity. In many real workflows, the best operational answer is not the minimum-loss row, but the simplest row whose loss is already good enough.
 
@@ -79,8 +63,6 @@ One subtlety from the implementation: the `score` column is only computed in the
 
 ## 2. Tuning sequence that usually works
 
-This sequence mirrors the tuning notes in the PySR docs.
-
 ### Step 1, start with fewer operators than you want
 
 Good default mindset:
@@ -93,8 +75,6 @@ Examples:
 - do not add `exp`, `log`, and multiple custom operators unless the domain really calls for them
 
 ### Step 2, keep `maxsize` modest
-
-A common failure mode is giving PySR a giant search space before it has any clue what matters.
 
 Reasonable starting values:
 - `maxsize=12` to `20` for many clean toy or tabular problems
@@ -115,8 +95,6 @@ model = PySRRegressor(
 )
 ```
 
-This is directly in line with the project tuning guide: strict constraints often help a lot.
-
 ### Step 4, scale budget only after structure looks sane
 
 Useful knobs once the operator set is credible:
@@ -130,9 +108,7 @@ For big cluster runs, the docs recommend increasing `ncycles_per_iteration` subs
 
 ## 3. Operators, constraints, and complexity
 
-## Choosing operators
-
-Good first operator menus:
+### Choosing operators
 
 ### Operator-selection cookbook
 
@@ -314,8 +290,6 @@ For plain searches this reload flow is well supported. For template-based runs, 
 
 ## 6. Common retuning loop
 
-This is a more realistic workflow than trying to get the final equation in one shot.
-
 1. Start with a minimal operator set and modest `maxsize`.
 2. Run a short search.
 3. Inspect `model.equations_`.
@@ -386,7 +360,5 @@ Practical advice:
 - if the structure is known, encode it with a template instead of hoping unconstrained search rediscovers it
 - reduce operator count before increasing runtime
 - use batching or subsampling for large row counts
-
-On highly redundant feature libraries, do feature selection with a faster model such as XGBoost or a Shapley-style analysis before PySR.
 
 As a sanity check, 16 features is not impossible, but it is enough that careless search spaces become expensive fast.
