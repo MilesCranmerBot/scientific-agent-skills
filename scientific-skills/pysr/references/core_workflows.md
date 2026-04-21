@@ -8,8 +8,9 @@ This is the practical workflow for most PySR tasks.
 3. Operators, constraints, and complexity
 4. Losses, weights, and batching
 5. Reading results and exporting equations
-6. Warm starts and reruns
-7. High-dimensional or redundant feature sets
+6. Common retuning loop
+7. Warm starts and reruns
+8. High-dimensional or redundant feature sets
 
 ## 1. Standard symbolic regression workflow
 
@@ -54,6 +55,7 @@ PySR does not just return one equation. It returns a frontier of equations tradi
 Useful selection patterns:
 - `model_selection="best"`: good default when you want PySR to balance simplicity and accuracy.
 - `model_selection="accuracy"`: useful when the user explicitly wants the lowest-loss available equation.
+- `model_selection="score"`: useful for advanced workflows that want to rank directly by score instead of PySR's `best` thresholding.
 - manual inspection of `model.equations_`: best when interpretability matters and the user is willing to choose from the frontier.
 
 Typical workflow:
@@ -64,6 +66,8 @@ print(model.equations_[cols].tail(10))
 ```
 
 If two candidate equations have very similar loss, usually prefer the simpler one unless the user explicitly says otherwise.
+
+One subtlety from the implementation: the `score` column is only computed in the default log-scaled loss workflow. If `score` is absent, PySR falls back to accuracy-based selection internally, so do not expect `model_selection="best"` to behave identically under every loss setup.
 
 ## 2. Tuning sequence that usually works
 
@@ -122,6 +126,20 @@ For big cluster runs, the docs recommend increasing `ncycles_per_iteration` subs
 
 Good first operator menus:
 
+### Operator-selection cookbook
+
+Use the smallest operator family that matches the user's actual hypothesis.
+
+| Situation | First operator set | What to watch |
+|---|---|---|
+| Mostly polynomial structure | `+`, `-`, `*`, maybe `square` | complexity blow-up from unnecessary `pow` |
+| Smooth periodic behavior | `+`, `-`, `*`, maybe `/`, then `sin` | do not start with `sin` and `cos` and `tan` together |
+| Growth or decay | `+`, `-`, `*`, maybe `/`, then one of `exp` or `log` | avoid adding both `exp` and `log` immediately |
+| Rational-form candidate | `+`, `-`, `*`, `/` | constrain aggressively before increasing runtime |
+| Peaked or localized behavior | small base set plus a custom Gaussian-like operator | verify export mappings and operator safety |
+
+Bad default habit: throwing in every vaguely plausible operator and hoping more runtime will sort it out.
+
 ### Polynomial-ish
 ```python
 binary_operators=["+", "-", "*"]
@@ -143,7 +161,9 @@ model = PySRRegressor(
 )
 ```
 
-The Gaussian operator is not hypothetical. It was recommended in discussion #1115 for resonance-like peak fitting.
+The Gaussian operator is a practical choice for resonance-like or peaked fits.
+
+If you want this operator to participate cleanly in downstream exports, also define matching JAX or Torch mappings when those export targets matter.
 
 ## Custom operator rules that matter
 
@@ -151,7 +171,11 @@ A custom operator should:
 - work over the intended floating-point type
 - avoid throwing exceptions over the real line
 - return `NaN` for invalid inputs rather than crashing
-- have matching export mappings if you want SymPy, JAX, or Torch export
+- use Julia float literals like `2.5f0` rather than `2.5` inside operator definitions
+- have `extra_sympy_mappings` if you want `lambda_format` and SymPy export to work
+- have `extra_jax_mappings` and `extra_torch_mappings` too if JAX or Torch export matters
+
+PySR may probe custom operators outside the observed data range during search, so “works on my training range” is not enough.
 
 ## Complexity controls
 
@@ -181,14 +205,14 @@ Use Julia syntax and keep it elementwise:
 elementwise_loss="loss(prediction, target) = (prediction - target)^2"
 ```
 
-Discussion #1079 is a good reminder that an `elementwise_loss` should not loop over the full dataset.
+An `elementwise_loss` should not loop over the full dataset.
 
 ### L1 vs L2
 
 - `L2` is the normal starting point.
 - `L1` is often worth trying on noisy or outlier-heavy data.
 
-This came up again in discussion #1115, where a harder fitting problem improved by changing both the transformed target and the loss choice.
+On harder fitting problems, it is often worth changing both the transformed target and the loss choice.
 
 ### Weights
 
@@ -212,7 +236,11 @@ If the objective really needs to look across the full dataset, use the full-obje
 ### Batching
 
 The local tuning notes give a practical rule:
-- for datasets bigger than about 1000 rows, either subsample or use `batching=True`
+- for datasets bigger than about 1000 rows, either subsample or use batching
+
+Important caveat: batching is mainly about reducing cost on larger datasets. It is not a generic recommendation for noisy data. For small noisy datasets, batching can make selection less stable and may be worse than just fitting on the full dataset.
+
+One important current-version detail: `batching` defaults to `"auto"`, so PySR already turns batching on automatically for larger datasets.
 
 Example:
 
@@ -223,7 +251,7 @@ model = PySRRegressor(
 )
 ```
 
-Discussion #948 also points toward trying smaller batch sizes when a larger run is underperforming.
+If a large run is underperforming, try a smaller batch size before making the search space larger.
 
 ## 5. Reading results and exporting equations
 
@@ -272,6 +300,8 @@ model = PySRRegressor.from_file("hall_of_fame.2026-01-01_120000.000.pkl")
 ```
 
 If the user quit a run early, the pickle and CSV can matter together.
+
+For plain searches this reload flow is well supported. For template-based runs, treat reload as fragile: `TemplateExpressionSpec` pickled reloads can still fail.
 
 ## 6. Common retuning loop
 
@@ -327,7 +357,7 @@ model.fit(X, y)  # continue search
 
 ### Unsafe changes before warm-starting
 
-Discussion #922 and the README both warn that these changes are risky or incompatible:
+These changes are risky or incompatible enough that you should usually restart fresh:
 - `expression_spec`
 - `maxsize`
 - `maxdepth`
@@ -342,12 +372,12 @@ If in doubt, use `model.reset()` or start a fresh run.
 
 PySR can handle more than toy feature counts, but search cost still grows brutally.
 
-Practical advice from docs and discussions:
+Practical advice:
 - if there are many candidate features, prefilter with a faster model first
 - if the structure is known, encode it with a template instead of hoping unconstrained search rediscovers it
 - reduce operator count before increasing runtime
 - use batching or subsampling for large row counts
 
-Discussion #1116 explicitly suggests feature selection with a faster model such as XGBoost or a Shapley-style analysis before PySR on highly redundant feature libraries.
+On highly redundant feature libraries, do feature selection with a faster model such as XGBoost or a Shapley-style analysis before PySR.
 
-Discussion #948 is a useful sanity check: 16 features is not impossible, but it is enough that careless search spaces become expensive fast.
+As a sanity check, 16 features is not impossible, but it is enough that careless search spaces become expensive fast.

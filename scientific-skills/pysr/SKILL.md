@@ -1,6 +1,6 @@
 ---
 name: pysr
-description: Symbolic regression with PySR for discovering compact analytical equations from tabular data. Use for standard PySRRegressor workflows, constraining operator sets, tuning search complexity, structured TemplateExpressionSpec searches, custom losses, exporting equations, and practical troubleshooting around Julia startup, warm starts, and cluster usage.
+description: Symbolic model search with PySR for discovering, constraining, and exporting compact analytical expressions. Use for standard PySRRegressor workflows, surrogate or distillation-style equation search, structured TemplateExpressionSpec searches, custom losses, operator/complexity control, and practical troubleshooting around Julia startup, warm starts, and cluster usage.
 license: MIT license
 metadata:
   skill-author: OpenClaw
@@ -10,22 +10,54 @@ metadata:
 
 ## Overview
 
-PySR is a Python interface for symbolic regression backed by SymbolicRegression.jl. Use it when the goal is not just prediction, but a compact equation you can inspect, export, and rerun.
+PySR is a Python interface for symbolic regression backed by SymbolicRegression.jl. Use it when the goal is to find a symbolic model you can inspect, constrain, export, and rerun, not just to maximize predictive accuracy.
 
-This skill is written for stable PySR v1 style workflows first. Prefer the plain `PySRRegressor` path unless the user clearly needs a structured template, custom objective, units, or cluster setup.
+This skill is written for stable PySR v1 style workflows first. Prefer the plain `PySRRegressor` path for unconstrained discovery, but switch to `TemplateExpressionSpec` early when the user already knows important structure.
 
 ## When to Use This Skill
 
 Use this skill when tasks involve:
+- discovering or distilling a symbolic model from data, simulations, or another predictive system
 - discovering an interpretable equation from tabular `X, y`
 - controlling allowed operators and equation complexity
 - comparing simpler vs better-fitting equations on the Pareto front
 - building structured expressions with `TemplateExpressionSpec`
 - category-specific parameters with a shared equation form
 - custom elementwise or global losses in Julia syntax
+- fitting structured residuals, derivative-informed objectives, or physics-shaped surrogates
 - exporting callable, SymPy, JAX, PyTorch, or LaTeX forms of equations
-- resuming runs from `hall_of_fame` files or `warm_start`
+- resuming with `warm_start` or reloading saved search state with `PySRRegressor.from_file(...)`
 - troubleshooting Julia import, cluster, or file-output issues
+
+## When Not to Use PySR First
+
+Do not reach for PySR first when:
+- the user mainly wants the best predictive accuracy rather than an interpretable equation
+- the feature set is huge and redundant, but there is no structural prior yet
+- the dataset is tiny and noisy enough that discovered equations will be unstable
+- the real task is feature selection, denoising, or preprocessing rather than equation discovery
+
+In those cases, first consider feature selection, a simpler baseline model, or a more standard predictive workflow.
+
+## Default PySR Playbook
+
+1. Start with 3 to 5 operators max.
+2. Run a cheap probe, not a heroic search.
+3. Inspect `model.equations_`, not just `get_best()`.
+4. If equations are messy, tighten constraints before adding runtime.
+5. If structure is partly known, switch to `TemplateExpressionSpec` early.
+6. Only warm-start when the search definition is materially unchanged.
+
+Most bad PySR runs are search-design failures, not compute shortages.
+
+## Task Router
+
+| User need | Open first |
+|---|---|
+| Standard symbolic regression on tabular data | `references/core_workflows.md` |
+| Known structure, shared parameters, or structured search | `references/template_expressions.md` |
+| Import, Julia, HPC, container, or startup issues | `references/installation_and_environment.md` |
+| Stalled run, bad operators, warm-start confusion, output mismatch, or file issues | `references/troubleshooting.md` |
 
 ## Quick Start
 
@@ -59,38 +91,67 @@ print(model.get_best())
 4. Tighten `constraints`, `nested_constraints`, and `maxsize` before adding more search budget.
 5. Only move to `TemplateExpressionSpec` when plain symbolic regression is leaving obvious structure on the table.
 
+## Pareto Front and Model Selection
+
+PySR does not really produce one answer. It produces an equation frontier.
+
+Default rule:
+- treat `model.equations_` as the product
+- use `model_selection="best"` as a default, not as a substitute for inspection
+- if interpretability matters, manually inspect the tradeoff between loss and complexity
+
+Do not blindly ship the minimum-loss row when a slightly simpler equation is nearly as good.
+
 ## Practical Guidance
 
 ### Standard search
-- Prefer a short operator list. PySR discussions repeatedly show that too many operators slow search more than they help.
+- Prefer a short operator list. Too many operators usually slow search more than they help.
 - Start with `+`, `-`, `*`, maybe `/`, then add domain operators one by one.
-- Use `batching=True` for larger or noisier datasets. For low-dimensional clean problems, subsampling often works well.
+- `batching` defaults to `"auto"`, which already turns batching on for larger datasets.
+- Treat batching mainly as a row-count tool, not a noise-handling tool.
+- For small noisy datasets, batching can make model selection less stable and is often the wrong move.
+- For low-dimensional clean problems, subsampling often works well.
 - Treat `model.equations_` as the real result. The minimum-loss row is not automatically the best operational choice if a slightly simpler equation is nearly as good.
-- `model_selection="best"` is a good default, but it is still worth manually inspecting the Pareto front when the user cares about interpretability.
+- `model_selection="best"` is a good default, but inspect manually when interpretability matters.
 - `warm_start=True` is useful only if core search settings stay effectively the same.
 
 ### Structured searches with templates
 - Reach for `TemplateExpressionSpec` when you already know the outer equation form or need shared subexpressions.
+- Treat templates as a first-class PySR workflow when structure is partly known, not as an exotic last resort.
 - For category-specific parameters, add the category as a column in `X` and remember Julia is 1-indexed.
 - Keep template `combine` returning a single scalar. If you need multi-output behavior, encode residuals into one scalar objective.
 
 ### Losses and objectives
 - `elementwise_loss` should be truly elementwise. Do not sum over rows inside it.
 - If you pass `weights=...` to `fit`, a custom `elementwise_loss` must accept three arguments: `(prediction, target, weight)`.
-- For likelihood-style or signed objectives, consider `loss_scale="linear"`.
+- Consider `loss_scale="linear"` when the custom loss can be zero or negative, or when using likelihood-style objectives.
 - For noisy tails or outliers, try `L1`-style losses before overengineering the operator set.
 
 ### Interpreting outputs
 - `model.equations_` is the main artifact. Use it to compare loss and complexity, and use `score` too when that column is present.
 - Saved files usually include both `hall_of_fame...csv` and `hall_of_fame...pkl`.
-- Use `PySRRegressor.from_file(...)` to inspect a saved run in a fresh process.
+- Use `PySRRegressor.from_file(...)` to inspect ordinary saved runs in a fresh process. Template-based runs have known reload caveats.
+
+## Safe first checks before a long run
+
+```python
+print(X.shape, y.shape)
+print(model)
+```
+
+Then verify:
+- feature count is actually modest enough for symbolic regression
+- operators match the domain
+- `maxsize` is not wildly larger than needed
+- output path is writable
+- search mode is multithreading unless distributed execution is truly required
 
 ## Discussion-derived gotchas worth remembering
 
 - The minimum-loss row is often not the best final answer. Inspect the Pareto front and prefer a simpler equation when loss is close.
 - Template categories are effectively 1-indexed. If category ids start at 0, add 1 before fitting.
 - If custom `elementwise_loss` is used together with `weights`, the loss must accept a third `weight` argument.
-- `warm_start` is brittle if you change operators, `expression_spec`, `maxsize`, `maxdepth`, or precision. When in doubt, reset or start fresh.
+- `warm_start` is safest only when the search definition is materially unchanged. Operator changes are explicitly unsafe, and changing template/size/depth/precision settings should be treated as suspect.
 
 ## Bundled resources
 
@@ -107,24 +168,10 @@ Use when the user needs structured equations, category-specific parameters, shar
 Use for startup crashes, HPC issues, output-file quirks, invalid custom operators, warm-start confusion, and template-specific pitfalls.
 
 ### `scripts/basic_search.py`
-Minimal end-to-end PySR regression example for a normal tabular problem.
+Safe-first-run PySR regression example with a held-out split, Pareto-front inspection, and cleaner scripted output. If `import pysr` is not already working, read the environment note first.
 
 ### `scripts/parametric_template.py`
-Template-based example with category-specific parameters and the important 1-indexed category handling.
-
-## First things to check before a long run
-
-```python
-print(X.shape, y.shape)
-print(model)
-```
-
-Then verify:
-- feature count is actually modest enough for symbolic regression
-- operators match the domain
-- `maxsize` is not wildly larger than needed
-- output path is writable
-- search mode is multithreading unless distributed execution is truly required
+Template-based example with category-specific parameters, explicit learned-vs-true parameter reporting, and the important 1-indexed category handling. It is heavier than `basic_search.py`.
 
 ## References
 

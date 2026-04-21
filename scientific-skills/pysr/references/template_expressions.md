@@ -48,9 +48,11 @@ model.fit(X, y)
 
 This is one of the most important template workflows because it directly addresses repeated user questions like #1179 and older threads like #530 and #1091.
 
+Treat this as a normal PySR power-user pattern, not a weird corner case.
+
 ### Example
 
-Suppose all categories share the same functional form, but each category gets its own offset and scale.
+Suppose all categories share the same functional form, but each category gets its own coefficient on `sin(x1)` and on `x2`.
 
 ```python
 import numpy as np
@@ -62,9 +64,9 @@ x1 = rng.uniform(-3, 3, n)
 x2 = rng.uniform(-1, 1, n)
 category = rng.integers(0, 3, size=n)
 
-scale = np.array([0.8, 1.5, -0.4])
-offset = np.array([0.2, 1.0, -1.2])
-y = scale[category] * np.sin(x1) + offset[category]
+coef_sin = np.array([0.8, 1.5, -0.4])
+coef_x2 = np.array([0.2, 1.0, -1.2])
+y = coef_sin[category] * np.sin(x1) + coef_x2[category] * x2
 
 category_p1 = category + 1  # important: Julia indexing
 X = np.column_stack([x1, x2, category_p1])
@@ -72,8 +74,8 @@ X = np.column_stack([x1, x2, category_p1])
 spec = TemplateExpressionSpec(
     expressions=["f"],
     variable_names=["x1", "x2", "category"],
-    parameters={"p_scale": 3, "p_offset": 3},
-    combine="f(x1, x2, p_scale[category], p_offset[category])",
+    parameters={"p_sin": 3, "p_x2": 3},
+    combine="f(x1, x2, p_sin[category], p_x2[category])",
 )
 
 model = PySRRegressor(
@@ -86,11 +88,13 @@ model = PySRRegressor(
 model.fit(X, y)
 ```
 
+In a successful run, PySR should recover a form close to `p_sin * sin(x1) + p_x2 * x2` with different learned parameter values for each category.
+
 ### Gotcha, categories are 1-indexed
 
 This is easy to miss. Julia arrays start at 1, so category labels used to index template parameters must also start at 1.
 
-Discussion #1179 explicitly caught a docs mistake here.
+This is easy to get wrong, so check it explicitly.
 
 ## Shared subexpressions
 
@@ -113,7 +117,7 @@ That means this is wrong:
 combine="(f1(x1, x2), f2(x1, x2))"
 ```
 
-This issue appears directly in discussion #1174.
+This is a common mistake.
 
 ### Correct pattern
 
@@ -141,7 +145,9 @@ model = PySRRegressor(
 
 Then pass a dummy `y`, often zeros.
 
-This is the stable-v1 way to think about multi-output-like template problems.
+This is a documented workaround for multi-output-like template problems in v1, not native multi-output support.
+
+If the objective really depends on the full expression rather than a simple per-row residual, look at `loss_function_expression` rather than forcing everything through `elementwise_loss`.
 
 ## Derivatives inside templates
 
@@ -157,7 +163,7 @@ spec = TemplateExpressionSpec(
 )
 ```
 
-This is useful when the objective is naturally written in terms of derivatives, integral matching, or physics constraints. It is relevant to threads like #1174 and #1036.
+This is useful when the objective is naturally written in terms of derivatives, integral matching, or physics constraints.
 
 ## Template debugging checklist
 
@@ -168,22 +174,22 @@ If a template run misbehaves, check:
 - parameter lengths match the number of categories
 - the feature matrix column order matches `variable_names`
 - custom operators used inside the template are valid Julia code
+- inspection output will often show argument placeholders like `#1`, `#2`, ... rather than your original variable names, and that is expected
 
 ## Template export and reload caveats
 
-Template workflows are powerful, but they have had more edge cases than plain searches in discussions, including:
+Template workflows are powerful, but they have had more edge cases than plain searches, including:
 - loading saved template models
 - distributed execution with templates
 - complex-domain template exports
 
-Relevant discussions include #1179, #1110, #1059, #1011, and #916.
-
 Practical recommendation:
 - validate the workflow on one local process first
 - only then scale it up or add cluster/distributed complexity
+- do not assume `PySRRegressor.from_file(...)` will cleanly reload template-based runs; this path is known to be fragile
 
 ## When not to use templates
 
 Do not use a template just because the feature count is high.
 
-A template helps when you know structure. If the real issue is too many redundant features, first reduce features or operators. Discussion #1116 is closer to a feature-selection problem than a template problem.
+A template helps when you know structure. If the real issue is too many redundant features, first reduce features or operators.

@@ -13,6 +13,7 @@ pip install pysr
 ```
 
 PySR installs Julia-side dependencies on first import through `juliacall`.
+For repo-local execution, a practical pattern is often `uv run --directory /path/to/PySR python script.py`.
 
 ### Option 2, conda-forge
 
@@ -20,7 +21,7 @@ PySR installs Julia-side dependencies on first import through `juliacall`.
 conda install -c conda-forge pysr
 ```
 
-This is often the least painful path on managed systems.
+PySR is compatible with the usual Python environment managers. Use whichever environment workflow the user already trusts.
 
 ### Option 3, containerized on clusters
 
@@ -28,7 +29,7 @@ For HPC or locked-down systems, prefer a tested container recipe over hand-fixin
 - `Apptainer.def`
 - `Dockerfile`
 
-This matches guidance in discussion #1020, where import problems on Singularity-like systems were best handled by starting from the provided definition file.
+In practice, import problems on Singularity-like systems are often easiest to solve by starting from the provided definition file.
 
 ## What happens on first import
 
@@ -39,6 +40,7 @@ On first `import pysr`, PySR may:
 - take noticeably longer than later imports
 
 This is normal. Do not judge runtime from the first import alone.
+First import and first real search may spend noticeable time provisioning and precompiling Julia packages.
 
 ## Environment assumptions that help
 
@@ -75,11 +77,11 @@ Only do this with the correct Julia library directory for that machine.
 
 ### 2. HPC or container import aborts
 
-Discussion #1020 points to a practical answer: start from the provided Apptainer definition instead of assembling the environment by hand.
+Start from the provided Apptainer definition instead of assembling the environment by hand.
 
 ### 3. Output file permission errors
 
-If `hall_of_fame.csv` fails intermittently, first move the run to a simple local directory. Avoid cloud-synced folders, unusual network mounts, and aggressively scanned directories. This is consistent with the flavor of failures reported in discussion #1048.
+If `hall_of_fame.csv` fails intermittently, first move the run to a simple local directory. Avoid cloud-synced folders, unusual network mounts, and aggressively scanned directories.
 
 ## Jupyter, IPython, tmux
 
@@ -104,7 +106,7 @@ Only move to distributed execution if:
 - the dataset or search budget truly requires it, and
 - the user is comfortable debugging Julia worker environments
 
-Discussion #1144 explicitly recommends sticking with multithreading unless there is a specific reason to switch.
+Stick with multithreading unless there is a specific reason to switch.
 
 ## Minimal environment checklist
 

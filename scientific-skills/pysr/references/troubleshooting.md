@@ -18,7 +18,7 @@ This guide focuses on the problems that come up repeatedly in real PySR use.
 ### Why this happens
 PySR brings together Python, Julia, and compiled libraries. Import failures are usually environment problems, not symbolic-regression problems.
 
-Relevant sources: README troubleshooting section, discussion #1020.
+This is usually an environment problem, not a symbolic-regression problem.
 
 ## 2. The search is running, but it is much slower than expected
 
@@ -32,11 +32,12 @@ Relevant sources: README troubleshooting section, discussion #1020.
 ### What to try
 - cut the operator list in half
 - lower `maxsize`
-- try `batching=True`
+- if the dataset is large, try `batching=True`
+- if the dataset is small but noisy, prefer full-data fitting first rather than batching
 - use a smaller `batch_size`
 - run a short probe job first
 
-Discussion #948 is a useful reminder that even a moderate feature count becomes painful if the search space is bloated.
+Even a moderate feature count becomes painful if the search space is bloated.
 
 ## 3. Custom operator works sometimes, then crashes or yields nonsense
 
@@ -46,9 +47,10 @@ The operator is not safe over the numeric range PySR probes.
 ### What to try
 - make the operator total over the real line
 - return typed `NaN` for invalid inputs instead of throwing an exception
+- use Julia float32 literals like `2.5f0` inside operator definitions when constants are needed
 - ensure the SymPy mapping matches the Julia definition if export matters
 
-The operators doc is explicit here: PySR expects custom operators not to throw across a very wide real range.
+The operators doc is explicit here: PySR expects custom operators not to throw across a very wide real range, and PySR can test operators outside the input range seen in the dataset.
 
 ## 4. `elementwise_loss` is behaving strangely
 
@@ -71,7 +73,7 @@ end
 loss(prediction, target) = abs(prediction - target)
 ```
 
-Discussion #1079 highlights this confusion directly.
+This confusion is common.
 
 ### Weighted custom-loss gotcha
 
@@ -91,36 +93,34 @@ If the loss only accepts `(prediction, target)`, weighted runs can fail or behav
 - `variable_names` must match column order in `X`
 - if doing pseudo-multi-output, use a scalar residual plus dummy `y`
 
-Relevant discussions: #1179, #1174, #1002.
+These are the first things to check when template behavior looks bizarre.
 
 ## 6. Warm start is broken or resumed runs look inconsistent
 
 ### Likely cause
 Core search settings changed between fits.
 
-### Unsafe changes include
-- operators
-- `expression_spec`
-- `maxsize`
-- `maxdepth`
-- precision
-- often constraints or complexity settings
+### Explicitly unsafe or strongly suspect changes
+- operators are explicitly unsafe
+- `maxsize` is explicitly called out in user-facing docs as a parameter that can break warm starts
+- changing template, size, depth, precision, or constraint settings should generally be treated as suspect even when not all are spelled out equally explicitly in the docs
 
 ### What to do
 - if the search definition changed materially, start a fresh model or call `reset()`
-- use `from_file(...)` to inspect old runs rather than forcing them into a new search setup
+- use `from_file(...)` to inspect old ordinary runs rather than forcing them into a new search setup
+- for template runs, remember that reloads are known to be fragile and may fail
 
-Relevant discussion: #922.
+Treat this as a strong restart-fresh case.
 
 ## 7. Cluster or Slurm runs fail, especially with templates
 
 ### Strong default recommendation
 If the user is on one machine, prefer multithreading first.
 
-Discussion #1144 recommends sticking with multithreading unless there is a specific reason to switch.
+Stick with multithreading unless there is a specific reason to switch.
 
 ### Template-specific caution
-Discussion #1110 suggests template expression definitions on worker nodes can be a real source of distributed failures.
+Template expression definitions on worker nodes can be a real source of distributed failures.
 
 ### What to try
 - verify the template on one process first
@@ -141,7 +141,7 @@ Discussion #1110 suggests template expression definitions on worker nodes can be
 - simplify the output path
 - avoid OneDrive, Dropbox, or exotic mounts during the run
 
-This lines up with discussion #1048.
+This is a common filesystem and output-path problem.
 
 ## 9. Progress appears stalled in tmux or remote shells
 
@@ -155,7 +155,7 @@ This lines up with discussion #1048.
 - whether the hall-of-fame files are still updating
 - whether a shorter local run reproduces the issue
 
-Discussion #1067 did not end in a clean PySR-specific root cause, so treat this as an execution-environment debugging problem, not a canonical PySR feature limitation.
+Treat this as an execution-environment debugging problem, not a canonical PySR feature limitation.
 
 ## 10. Equations in CSV do not match predictions or exports
 
@@ -167,7 +167,7 @@ Is the numerical behavior wrong, or just the string representation/export?
 - using templates
 - comparing Julia behavior to MATLAB or another language with different branch conventions
 
-Discussion #1059 shows a real example where template-plus-complex workflows could diverge between CSV strings and evaluated model behavior.
+Template-plus-complex workflows can diverge between CSV strings and evaluated model behavior.
 
 ### What to do
 - test `model.predict` from the saved pickle
@@ -190,7 +190,7 @@ It usually means:
 - reduce operators
 - move to a template if the desired structure is already known
 
-Discussion #1116 is the clearest recent example.
+This often indicates redundancy in the feature library rather than a PySR bug.
 
 ## Quick triage order
 
