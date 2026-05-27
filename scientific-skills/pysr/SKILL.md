@@ -140,8 +140,13 @@ Before scaling budget, verify:
 
 ## Optional runnable examples
 
+The `scripts/` files are runnable helpers/examples, not reference documentation.
+Use them when the user needs a concrete starting point or a quick environment check.
+
 ### `scripts/basic_search.py`
-Safe-first-run PySR regression example with a held-out split, Pareto-front inspection, and cleaner scripted output. If `import pysr` is not already working, read the environment note first.
+Minimal PySR smoke-test example on synthetic data. It uses a narrow operator set,
+a small search budget, a held-out split, and Pareto-front output. If `import pysr`
+is not already working, read the environment note first.
 
 ### `scripts/parametric_template.py`
 Template-based example with category-specific parameters, explicit learned-vs-true parameter reporting, and the important 1-indexed category handling. It is heavier than `basic_search.py`.

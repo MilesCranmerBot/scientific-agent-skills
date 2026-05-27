@@ -1,66 +1,89 @@
-"""Safe first-run PySR regression example.
+#!/usr/bin/env python3
+"""Minimal runnable PySR smoke test.
 
-This is meant to be run in an environment where `import pysr` already works.
-If you are running from a PySR checkout, a practical pattern is:
-    uv run --directory /path/to/PySR python3 basic_search.py
+Use this script to check that a PySR environment can run a small symbolic
+regression search end to end. It intentionally uses synthetic data and a narrow
+operator set so failures usually point to installation/runtime issues rather
+than problem setup.
 
 Run with:
-    python3 basic_search.py
+    python basic_search.py
+    python basic_search.py --iterations 80 --samples 400
 """
 
 from __future__ import annotations
 
-import numpy as np
+import argparse
+import sys
 
-from pysr import PySRRegressor
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--iterations", type=int, default=50, help="PySR search iterations.")
+    parser.add_argument("--samples", type=int, default=300, help="Synthetic rows to generate.")
+    parser.add_argument("--seed", type=int, default=0, help="Random seed for synthetic data.")
+    parser.add_argument(
+        "--noise",
+        type=float,
+        default=0.0,
+        help="Gaussian noise standard deviation added to the target.",
+    )
+    return parser.parse_args()
 
 
-def main() -> None:
-    rng = np.random.default_rng(0)
-    X = rng.uniform(-2.0, 2.0, size=(600, 3))
-    y = X[:, 0] ** 2 + 1.5 * np.sin(X[:, 1]) - 0.25 * X[:, 2]
-    y += 0.02 * rng.normal(size=y.shape)
+def main() -> int:
+    args = parse_args()
 
-    n_train = 500
-    X_train, X_val = X[:n_train], X[n_train:]
-    y_train, y_val = y[:n_train], y[n_train:]
+    try:
+        import numpy as np
+        from pysr import PySRRegressor
+    except ImportError as exc:
+        print(
+            "Could not import PySR dependencies. Install PySR in this environment first.",
+            file=sys.stderr,
+        )
+        print(f"Import error: {exc}", file=sys.stderr)
+        return 1
+
+    rng = np.random.default_rng(args.seed)
+    X = rng.uniform(-2.0, 2.0, size=(args.samples, 2))
+    y = X[:, 0] ** 2 - 0.5 * X[:, 1] + 1.0
+    if args.noise:
+        y = y + args.noise * rng.normal(size=args.samples)
+
+    split = max(1, int(0.8 * args.samples))
+    X_train, X_val = X[:split], X[split:]
+    y_train, y_val = y[:split], y[split:]
 
     model = PySRRegressor(
-        niterations=200,
-        populations=8,
-        population_size=33,
+        niterations=args.iterations,
         binary_operators=["+", "-", "*"],
-        unary_operators=["sin", "square"],
-        maxsize=16,
+        unary_operators=["square"],
+        maxsize=10,
         parsimony=1e-3,
-        batching=False,
+        populations=4,
+        population_size=20,
         progress=False,
-        random_state=0,
+        random_state=args.seed,
         model_selection="best",
     )
 
     model.fit(X_train, y_train)
 
-    print("\nBest row:")
-    print(model.get_best())
-
-    print("\nPareto front tail:")
     cols = [c for c in ["loss", "complexity", "score", "equation"] if c in model.equations_.columns]
-    print(model.equations_[cols].tail())
-    print("\nTip: do not automatically choose the minimum-loss row if a slightly simpler equation is nearly as good.")
+    print("\nPareto front:")
+    print(model.equations_[cols])
 
     best = model.get_best()
-    if "sympy_format" in best.index:
-        print("\nBest equation (SymPy):")
-        print(best["sympy_format"])
+    print("\nSelected equation:")
+    print(best.get("sympy_format", best.get("equation")))
 
-    preds = model.predict(X_val[:5])
-    print("\nFirst five validation predictions:")
-    print(preds)
+    if len(X_val):
+        val_mse = np.mean((model.predict(X_val) - y_val) ** 2)
+        print(f"\nValidation MSE: {val_mse:.6g}")
 
-    val_mse = np.mean((model.predict(X_val) - y_val) ** 2)
-    print(f"\nValidation MSE of selected equation: {val_mse:.6f}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
