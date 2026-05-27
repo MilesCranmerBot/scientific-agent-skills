@@ -47,7 +47,7 @@ def main() -> None:
     print("\nPareto front tail:")
     cols = [c for c in ["loss", "complexity", "score", "equation"] if c in model.equations_.columns]
     print(model.equations_[cols].tail())
-    print("\nTip: do not blindly ship the minimum-loss row if a slightly simpler equation is nearly as good.")
+    print("\nTip: do not automatically choose the minimum-loss row if a slightly simpler equation is nearly as good.")
 
     best = model.get_best()
     if "sympy_format" in best.index:

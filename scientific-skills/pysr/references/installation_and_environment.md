@@ -1,6 +1,6 @@
 # PySR Installation and Environment
 
-This note covers the parts of PySR setup that actually affect whether a run starts and stays healthy.
+This note covers PySR setup choices that determine whether a run starts reliably and remains reproducible.
 
 ## Recommended install paths
 

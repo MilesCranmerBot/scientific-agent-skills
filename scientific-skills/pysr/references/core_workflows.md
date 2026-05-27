@@ -5,10 +5,10 @@ This is the practical workflow for most PySR tasks.
 ## If you only remember five things
 
 1. Start with the smallest operator set that could plausibly express the target.
-2. Treat run 1 as a cheap probe, not the final search.
+2. Treat the first run as a search-space probe, not the final search.
 3. Inspect `model.equations_`, not just `get_best()`.
 4. Tighten operators and constraints before adding more runtime.
-5. Compare a few Pareto-front candidates before shipping one equation.
+5. Compare a few Pareto-front candidates before selecting one equation.
 
 ## 1. Standard symbolic regression workflow
 
@@ -361,4 +361,4 @@ Practical advice:
 - reduce operator count before increasing runtime
 - use batching or subsampling for large row counts
 
-As a sanity check, 16 features is not impossible, but it is enough that careless search spaces become expensive fast.
+Sixteen input features is feasible, but broad unconstrained search spaces become expensive quickly at that scale.

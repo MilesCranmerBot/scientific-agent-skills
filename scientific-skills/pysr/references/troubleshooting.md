@@ -37,7 +37,7 @@ This is usually an environment problem, not a symbolic-regression problem.
 - use a smaller `batch_size`
 - run a short probe job first
 
-Even a moderate feature count becomes painful if the search space is bloated.
+Even a moderate feature count can become expensive when the search space is too broad.
 
 ## 3. Custom operator works sometimes, then crashes or yields nonsense
 
@@ -55,7 +55,7 @@ The operators doc is explicit here: PySR expects custom operators not to throw a
 ## 4. `elementwise_loss` is behaving strangely
 
 ### Likely cause
-The loss is not actually elementwise.
+The loss aggregates across rows instead of evaluating one prediction-target pair at a time.
 
 ### Bad pattern
 ```julia
@@ -139,7 +139,7 @@ Template expression definitions on worker nodes can be a real source of distribu
 ### What to try
 - write to a plain local directory
 - simplify the output path
-- avoid OneDrive, Dropbox, or exotic mounts during the run
+- avoid OneDrive, Dropbox, or unusual synchronized/networked mounts during the run
 
 This is a common filesystem and output-path problem.
 

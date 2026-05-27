@@ -46,9 +46,7 @@ model.fit(X, y)
 
 ## Category-specific parameters with a shared equation form
 
-This is one of the most important template workflows because it covers a very common use case: one shared equation form with category-specific parameters.
-
-Treat this as a normal PySR power-user pattern, not a weird corner case.
+This is one of the most important template workflows because it covers a common use case: one shared equation form with category-specific parameters.
 
 ### Example
 

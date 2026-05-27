@@ -27,13 +27,13 @@ In those cases, first consider feature selection, a simpler baseline model, or a
 ## Default workflow
 
 1. Start with a deliberately small operator set that matches the actual hypothesis class.
-2. Run a cheap probe, not a heroic search.
+2. Run a short probe before spending a large search budget.
 3. Inspect `model.equations_`, not just `get_best()`.
-4. If equations are messy, tighten constraints before adding runtime.
+4. If equations are overly complex, tighten constraints before adding runtime.
 5. If structure is partly known, switch to `TemplateExpressionSpec` early.
 6. Only warm-start when the search definition is materially unchanged.
 
-Most bad PySR runs come from a bloated or poorly matched search space, not from too little compute.
+Unsuccessful PySR runs often come from an overly broad or poorly matched search space, not from too little compute.
 
 ## Task Router
 
@@ -48,8 +48,8 @@ Most bad PySR runs come from a bloated or poorly matched search space, not from 
 
 Use this as the first real run. Then inspect `model.equations_` and retune from there.
 
-Good instinct: start with the smallest operator set that could plausibly express the target.
-Bad instinct: throw `sin`, `cos`, `exp`, `log`, `pow`, `/`, and custom operators at every problem.
+Start with the smallest operator set that could plausibly express the target.
+Avoid adding `sin`, `cos`, `exp`, `log`, `pow`, `/`, and custom operators unless the domain suggests them.
 
 ```python
 import numpy as np
@@ -82,17 +82,17 @@ Default rule:
 - use `model_selection="best"` as a default, not as a substitute for inspection
 - if interpretability matters, manually inspect the tradeoff between loss and complexity
 
-Do not blindly ship the minimum-loss row when a slightly simpler equation is nearly as good.
+Do not automatically choose the minimum-loss row when a slightly simpler equation is nearly as good.
 
 ## Practical Guidance
 
 ### Standard search
 - Prefer a short operator list. Too many operators usually slow search more than they help.
 - Start with `+`, `-`, `*`, maybe `/`, then add domain operators one by one.
-- Do not start with a kitchen-sink operator menu unless the user explicitly wants a very broad exploratory search.
+- Do not begin with a broad operator menu unless the user explicitly wants exploratory search over many function families.
 - `batching` defaults to `"auto"`, which already turns batching on for larger datasets.
 - Treat batching mainly as a row-count tool, not a noise-handling tool.
-- For small noisy datasets, batching can make model selection less stable and is often the wrong move.
+- For small noisy datasets, batching can make model selection less stable and is often not the right default.
 - For low-dimensional clean problems, subsampling often works well.
 - Treat `model.equations_` as the real result. The minimum-loss row is not automatically the best operational choice if a slightly simpler equation is nearly as good.
 - `model_selection="best"` is a good default, but inspect manually when interpretability matters.
@@ -100,7 +100,7 @@ Do not blindly ship the minimum-loss row when a slightly simpler equation is nea
 
 ### Structured searches with templates
 - Reach for `TemplateExpressionSpec` when you already know the outer equation form or need shared subexpressions.
-- Treat templates as a first-class PySR workflow when structure is partly known, not as an exotic last resort.
+- Treat templates as a first-class PySR workflow when structure is partly known.
 - For category-specific parameters, add the category as a column in `X` and remember Julia is 1-indexed.
 - Keep template `combine` returning a single scalar. If you need multi-output behavior, encode residuals into one scalar objective.
 
@@ -108,12 +108,12 @@ Do not blindly ship the minimum-loss row when a slightly simpler equation is nea
 - `elementwise_loss` should be truly elementwise. Do not sum over rows inside it.
 - If you pass `weights=...` to `fit`, a custom `elementwise_loss` must accept three arguments: `(prediction, target, weight)`.
 - Consider `loss_scale="linear"` when the custom loss can be zero or negative, or when using likelihood-style objectives.
-- For noisy tails or outliers, try `L1DistLoss()` before overengineering the operator set.
+- For noisy tails or outliers, try `L1DistLoss()` before expanding the operator set.
 
 ### Interpreting outputs
 - `model.equations_` is the main artifact. Use it to compare loss and complexity, and use `score` too when that column is present.
 - Saved outputs are organized in a run directory, usually including `checkpoint.pkl` plus `hall_of_fame.csv`.
-- Use `PySRRegressor.from_file(run_directory=...)` to inspect ordinary saved runs in a fresh process. Template-based runs have known reload caveats.
+- Use `PySRRegressor.from_file(run_directory=...)` to inspect ordinary saved runs in a fresh process. Template-based runs need extra care because reload support depends on dynamic expression-spec objects.
 
 ## Safe first checks before a long run
 
